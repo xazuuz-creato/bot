@@ -1,6 +1,3 @@
 fastapi
 uvicorn
-ccxt
-pandas
 aiohttp
-pydantic
