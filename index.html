@@ -319,4 +319,69 @@
                 let card = document.createElement('div');
                 card.className = `p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between ${isSelected ? 'bg-accentBlue/15 border-accentBlue shadow-md' : 'bg-darkBg border-cardBorder'}`;
                 card.onclick = () => selectCoinBySymbol(sym);
-                card.innerHTML =
+                card.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-cardBg flex items-center justify-center font-bold text-[11px] text-white border border-cardBorder">${sym.split('/')[0]}</div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono">${sym}</h4>
+                            <span class="text-[10px] text-gray-400 font-mono">${info.price > 0 ? '$' + formatPrice(info.price) : 'جاري الجلب...'}</span>
+                        </div>
+                    </div>
+                    <div class="text-left font-mono">
+                        <span class="text-xs font-bold ${isPos ? 'text-accentGreen' : 'text-accentRed'} block">${info.change}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectCoinBySymbol(sym) {
+            activeSymbol = sym;
+            let tvSym = "OKX:" + sym.replace('/', '');
+            document.getElementById('activeChartSymbol').innerText = tvSym;
+            document.getElementById('analysisSymbol').innerText = sym;
+            initTradingViewWidget(tvSym);
+        }
+
+        function initTradingViewWidget(tvSymbol) {
+            document.getElementById('tradingview_chart').innerHTML = '';
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": tvSymbol,
+                "interval": "1",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "ar",
+                "toolbar_bg": "#121824",
+                "enable_publishing": false,
+                "container_id": "tradingview_chart"
+            });
+        }
+
+        function toggleMasterSystem() {
+            isSystemActive = !isSystemActive;
+            fetch('/api/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({is_running: isSystemActive})
+            });
+            let btn = document.getElementById('masterToggleBtn');
+            let text = document.getElementById('masterToggleText');
+            if (isSystemActive) {
+                btn.className = "bg-accentRed hover:bg-red-600 text-white font-bold px-4 py-2 rounded-xl transition text-xs shadow-lg pulse-glow-red";
+                text.innerText = "زر الطوارئ (إيقاف)";
+            } else {
+                btn.className = "bg-accentGreen hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl transition text-xs shadow-lg";
+                text.innerText = "استئناف العمل";
+            }
+        }
+
+        function formatPrice(val) {
+            let num = parseFloat(val);
+            if (isNaN(num)) return "0.00";
+            return num >= 100 ? num.toFixed(2) : num.toFixed(4);
+        }
+    </script>
+</body>
+</html>
