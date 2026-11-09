@@ -1,9 +1,5 @@
 openstudio-ai/
-├── app/
-│   ├── __init__.py
-│   └── main.py
-├── static/
-│   └── index.html
+├── app.py
 ├── requirements.txt
 ├── Dockerfile
 ├── render.yaml
