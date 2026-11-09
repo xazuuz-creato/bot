@@ -3,11 +3,18 @@ services:
     name: openstudio-ai
     runtime: docker
     plan: starter
+
     healthCheckPath: /api/health
+
     envVars:
-      - key: OPENSTUDIO_DATA
-        value: /app/data
-      - key: MAX_UPLOAD_MB
-        value: "100"
+      - key: DATA_DIR
+        value: /srv/data
+
+      - key: OLLAMA_URL
+        sync: false
+
+      - key: OLLAMA_MODEL
+        value: qwen2.5:7b
+
       - key: SENTRY_DSN
         sync: false
