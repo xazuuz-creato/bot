@@ -1,0 +1,358 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width,initial-scale=1">
+  <title>OpenStudio AI</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Tahoma, Arial, sans-serif;
+      background: #090d18;
+      color: #f1f5f9;
+    }
+    header {
+      padding: 22px;
+      background: #111827;
+      border-bottom: 1px solid #334155;
+    }
+    h1 { margin: 0; color: #a5b4fc; }
+    h2 { font-size: 19px; }
+    .container {
+      max-width: 1150px;
+      margin: auto;
+      padding: 24px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 18px;
+    }
+    .card {
+      background: #141e30;
+      border: 1px solid #334155;
+      padding: 22px;
+      border-radius: 15px;
+      margin-bottom: 18px;
+    }
+    input, select, button {
+      padding: 12px;
+      border-radius: 9px;
+      border: 1px solid #475569;
+      font: inherit;
+      max-width: 100%;
+    }
+    input, select {
+      background: #0f172a;
+      color: white;
+      width: 100%;
+      margin: 8px 0;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+    .item {
+      background: #1e293b;
+      padding: 12px;
+      border-radius: 9px;
+      margin: 8px 0;
+      overflow-wrap: anywhere;
+    }
+    .item button { margin: 4px; }
+    .muted { color: #94a3b8; font-size: 13px; }
+    .success { color: #86efac; }
+    .error { color: #fca5a5; }
+    a { color: #a5b4fc; }
+    #message { white-space: pre-wrap; }
+    @media(max-width: 750px) {
+      .grid { grid-template-columns: 1fr; }
+      .container { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🎬 OpenStudio AI</h1>
+  <p class="muted">استوديو إدارة الوسائط وتصدير الفيديو</p>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h2>حالة الخادم</h2>
+    <div id="health">جاري الاتصال...</div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>إنشاء مشروع</h2>
+      <input id="projectName"
+             placeholder="اسم المشروع"
+             value="مشروعي الأول">
+      <button onclick="createProject()">
+        إنشاء المشروع
+      </button>
+      <h2>المشاريع</h2>
+      <div id="projects"></div>
+    </section>
+
+    <section class="card">
+      <h2>رفع صورة أو فيديو</h2>
+      <p class="muted">
+        اختر مشروعًا أولًا، ثم ارفع ملفًا مدعومًا.
+      </p>
+      <input id="file" type="file"
+             accept="image/*,video/mp4,video/webm,video/quicktime">
+      <button onclick="uploadAsset()">رفع الملف</button>
+      <h2>الملفات</h2>
+      <div id="assets"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>إعدادات التصدير</h2>
+    <div class="grid">
+      <div>
+        <label for="preset">الدقة</label>
+        <select id="preset">
+          <option value="preview">معاينة 360p</option>
+          <option value="hd">Full HD 1080p</option>
+          <option value="4k">4K — تكبير تقليدي</option>
+        </select>
+      </div>
+      <div>
+        <label for="duration">المدة بالثواني</label>
+        <input id="duration" type="number"
+               min="1" max="60" value="5">
+      </div>
+    </div>
+    <button onclick="renderVideo()">تصدير MP4</button>
+  </section>
+
+  <section class="card">
+    <h2>مهام الإنتاج</h2>
+    <div id="jobs"></div>
+  </section>
+
+  <section class="card">
+    <h2>سجل التطبيق</h2>
+    <p id="message" class="muted">
+      جاهز لاستقبال الأوامر.
+    </p>
+  </section>
+</main>
+
+<script>
+let selectedProject = "";
+let selectedAsset = "";
+
+async function api(path, options = {}) {
+  const response = await fetch(path, options);
+  if (!response.ok) {
+    throw new Error(
+      `HTTP ${response.status}: ` +
+      (await response.text()).slice(0, 180)
+    );
+  }
+  return response.json();
+}
+
+function message(text, error = false) {
+  const el = document.getElementById("message");
+  el.textContent = text;
+  el.className = error ? "error" : "success";
+}
+
+function button(text, handler) {
+  const el = document.createElement("button");
+  el.textContent = text;
+  el.addEventListener("click", handler);
+  return el;
+}
+
+async function createProject() {
+  try {
+    const name = document.getElementById("projectName").value;
+    const project = await api("/api/projects", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({name})
+    });
+    selectedProject = project.id;
+    selectedAsset = "";
+    await loadProjects();
+    await loadProject();
+    message("تم إنشاء المشروع بنجاح");
+  } catch (error) {
+    message(error.message, true);
+  }
+}
+
+async function loadProjects() {
+  const projects = await api("/api/projects");
+  const area = document.getElementById("projects");
+  area.replaceChildren();
+
+  for (const project of projects) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.append(
+      document.createTextNode(project.name + " "),
+      button(
+        selectedProject === project.id ? "محدد" : "اختيار",
+        async () => {
+          selectedProject = project.id;
+          selectedAsset = "";
+          await loadProjects();
+          await loadProject();
+        }
+      )
+    );
+    area.append(row);
+  }
+}
+
+async function loadProject() {
+  if (!selectedProject) return;
+
+  const project = await api(
+    "/api/projects/" + selectedProject
+  );
+
+  const assets = document.getElementById("assets");
+  assets.replaceChildren();
+
+  for (const asset of project.assets) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.append(
+      document.createTextNode(asset.filename + " "),
+      button(
+        selectedAsset === asset.id ? "محدد" : "اختيار",
+        () => {
+          selectedAsset = asset.id;
+          loadProject();
+        }
+      )
+    );
+    assets.append(row);
+  }
+
+  const jobs = document.getElementById("jobs");
+  jobs.replaceChildren();
+
+  for (const job of project.jobs) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.append(
+      document.createTextNode(
+        `${job.preset} — ${job.status}`
+      )
+    );
+
+    if (job.error) {
+      row.append(document.createTextNode(
+        " — " + job.error
+      ));
+    }
+
+    if (job.status === "completed") {
+      const link = document.createElement("a");
+      link.href = `/api/jobs/${job.id}/download`;
+      link.textContent = " تنزيل الفيديو";
+      row.append(link);
+    }
+
+    jobs.append(row);
+  }
+}
+
+async function uploadAsset() {
+  if (!selectedProject) {
+    message("اختر مشروعًا أولًا", true);
+    return;
+  }
+
+  const file = document.getElementById("file").files[0];
+  if (!file) {
+    message("اختر ملفًا", true);
+    return;
+  }
+
+  const data = new FormData();
+  data.append("project_id", selectedProject);
+  data.append("file", file);
+
+  try {
+    const asset = await api("/api/assets", {
+      method: "POST",
+      body: data
+    });
+    selectedAsset = asset.id;
+    await loadProject();
+    message("تم رفع الملف");
+  } catch (error) {
+    message(error.message, true);
+  }
+}
+
+async function renderVideo() {
+  if (!selectedProject || !selectedAsset) {
+    message("اختر مشروعًا وملفًا أولًا", true);
+    return;
+  }
+
+  const duration = Number(
+    document.getElementById("duration").value
+  );
+
+  try {
+    const job = await api("/api/jobs", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        project_id: selectedProject,
+        asset_id: selectedAsset,
+        preset: document.getElementById("preset").value,
+        duration
+      })
+    });
+    message("تم إنشاء مهمة: " + job.id);
+    await loadProject();
+  } catch (error) {
+    message(error.message, true);
+  }
+}
+
+async function start() {
+  try {
+    const health = await api("/api/health");
+    document.getElementById("health").textContent =
+      health.ffmpeg
+        ? "الخادم متصل — FFmpeg متوفر"
+        : "الخادم متصل — FFmpeg غير متوفر";
+
+    await loadProjects();
+  } catch (error) {
+    message(error.message, true);
+  }
+}
+
+start();
+setInterval(() => {
+  if (selectedProject) {
+    loadProject().catch(console.error);
+  }
+}, 3000);
+</script>
+</body>
+</html>
