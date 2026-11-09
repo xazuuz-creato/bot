@@ -1,0 +1,10 @@
+openstudio-ai/
+├── app/
+│   ├── __init__.py
+│   └── main.py
+├── static/
+│   └── index.html
+├── requirements.txt
+├── Dockerfile
+├── render.yaml
+└── .env.example
