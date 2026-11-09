@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: openstudio-ai
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENSTUDIO_DATA
+        value: /app/data
+      - key: MAX_UPLOAD_MB
+        value: "100"
+      - key: SENTRY_DSN
+        sync: false
